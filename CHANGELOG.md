@@ -4,6 +4,20 @@
 
 ---
 
+## [1.1.0] - 2026-05-17
+
+### Added
+- `install.bat`：Windows CMD 啟動器，雙擊即可安裝，自動設定執行原則並呼叫 `install.ps1`
+
+### Fixed
+- `install.ps1`：修正 UTF-8 無 BOM 導致 PowerShell 5.1 無法解析中文的問題
+- `install.ps1`：移除 PowerShell 7 專用語法（`?.`），改寫 API key 讀取邏輯
+
+### Changed
+- `README.md`、`docs/specs.md`：補充 `install.bat` 使用說明
+
+---
+
 ## [1.0.0] - 2026-05-17
 
 ### Added

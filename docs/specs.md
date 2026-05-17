@@ -25,7 +25,8 @@ NVIDIA NIM / OpenRouter / Ollama 等免費後端
 ```
 fcc-setup/
 ├── install.sh          # Linux (Ubuntu/Debian) 安裝腳本
-├── install.ps1         # Windows PowerShell 安裝腳本
+├── install.bat         # Windows CMD 啟動器（推薦入口；自動 Set-ExecutionPolicy 後呼叫 install.ps1）
+├── install.ps1         # Windows PowerShell 安裝腳本（實際安裝邏輯）
 ├── LICENSE             # MIT License
 ├── README.md           # 使用者說明文件
 └── docs/
@@ -136,5 +137,7 @@ gh repo edit --add-topic "claude-code,nvidia-nim,ai-tools,installer,free-llm"
 ## 注意事項
 
 - `install.sh` 和 `install.ps1` 裡有一個「設定區」section，修改時只改那個區塊
+- `install.bat` 僅為 Windows 啟動器，不含設定區；安裝邏輯一律在 `install.ps1`
+- Windows 使用者建議執行 `install.bat`（雙擊即可），無需了解 PowerShell 或手動 `Set-ExecutionPolicy`
 - API key 永遠不應該 hardcode 進腳本或 commit 進 repo
 - script 設計為冪等（idempotent）——重複執行不會壞掉

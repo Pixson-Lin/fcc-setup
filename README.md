@@ -7,7 +7,8 @@
 ```
 fcc-setup/
 ├── install.sh      # Linux (Ubuntu/Debian) 安裝腳本
-├── install.ps1     # Windows PowerShell 安裝腳本
+├── install.bat     # Windows CMD 啟動器（推薦，雙擊即可）
+├── install.ps1     # Windows PowerShell 安裝腳本（實際安裝邏輯）
 └── README.md       # 本說明
 ```
 
@@ -23,7 +24,19 @@ NVIDIA_NIM_API_KEY="nvapi-你的key" bash install.sh
 bash install.sh
 ```
 
-### Windows (PowerShell)
+### Windows
+
+**推薦：直接執行 `install.bat`**（雙擊或在 CMD 執行，不需認識 PowerShell；會自動設定執行原則並呼叫 `install.ps1`）
+
+```bat
+REM 方式一：帶 API key 直接執行（推薦，不用互動輸入）
+set NVIDIA_NIM_API_KEY=nvapi-你的key && install.bat
+
+REM 方式二：互動輸入 key
+install.bat
+```
+
+若你熟悉 PowerShell，也可直接執行 `install.ps1`：
 
 ```powershell
 # 方式一：帶 API key 直接執行（推薦）
@@ -33,7 +46,7 @@ $env:NVIDIA_NIM_API_KEY="nvapi-你的key"; .\install.ps1
 .\install.ps1
 ```
 
-> 第一次執行可能需要先允許 script 執行：
+> 使用 `install.bat` 時無需手動執行 `Set-ExecutionPolicy`；直接執行 `install.ps1` 時，第一次可能需要：
 > `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
 ---

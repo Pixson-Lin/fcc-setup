@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # free-claude-code 懶人安裝包 (Windows PowerShell)
 # 用法:
 #   直接執行: .\install.ps1
@@ -46,7 +46,8 @@ function Get-ApiKey {
         return $env:NVIDIA_NIM_API_KEY
     }
     if (Test-Path $FCC_ENV) {
-        $existing = (Get-Content $FCC_ENV | Select-String "NVIDIA_NIM_API_KEY=").ToString() -replace 'NVIDIA_NIM_API_KEY="?([^"]*)"?', '$1'
+        $line = Get-Content $FCC_ENV | Where-Object { $_ -match '^NVIDIA_NIM_API_KEY=' } | Select-Object -First 1
+        $existing = if ($line) { ($line -replace '^NVIDIA_NIM_API_KEY=', '').Trim().Trim('"') } else { '' }
         if ($existing -and $existing -ne "") {
             Write-Info "偵測到已有設定的 API key，跳過輸入"
             return $existing
@@ -156,8 +157,10 @@ LM_STUDIO_BASE_URL="http://localhost:1234/v1"
 # ── Step 7: 安裝 Windows Task Scheduler（開機自動啟動）──────────────────────
 function Install-TaskScheduler {
     param($ApiKey)
-    $fccBin = (Get-Command free-claude-code -ErrorAction SilentlyContinue)?.Source
-    if (-not $fccBin) {
+    $fccCmd = Get-Command free-claude-code -ErrorAction SilentlyContinue
+    if ($fccCmd) {
+        $fccBin = $fccCmd.Source
+    } else {
         $fccBin = "$env:USERPROFILE\.local\bin\free-claude-code.exe"
     }
 
@@ -166,11 +169,16 @@ function Install-TaskScheduler {
     # 包一個啟動用的小 wrapper script
     $wrapperPath = "$FCC_CONFIG_DIR\start-fcc.ps1"
     $wrapper = @"
-# free-claude-code 啟動 wrapper
-`$env:NVIDIA_NIM_API_KEY = (Get-Content '$FCC_ENV' | Select-String 'NVIDIA_NIM_API_KEY').ToString() -replace 'NVIDIA_NIM_API_KEY="?([^"]*)"?', '`$1'
+# free-claude-code startup wrapper
 Get-Content '$FCC_ENV' | ForEach-Object {
-    if (`$_ -match '^([^#][^=]+)="?(.*)"?`$') {
-        [System.Environment]::SetEnvironmentVariable(`$Matches[1].Trim(), `$Matches[2].Trim())
+    `$line = `$_.Trim()
+    if (`$line -and `$line[0] -ne '#') {
+        `$idx = `$line.IndexOf('=')
+        if (`$idx -gt 0) {
+            `$name = `$line.Substring(0, `$idx).Trim()
+            `$val  = `$line.Substring(`$idx + 1).Trim().Trim('"')
+            [System.Environment]::SetEnvironmentVariable(`$name, `$val)
+        }
     }
 }
 Start-Transcript -Path '$FCC_LOG_DIR\fcc.log' -Append
