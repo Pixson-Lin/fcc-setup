@@ -1,0 +1,94 @@
+# free-claude-code 懶人安裝包
+
+快速在多台機器上部署 `free-claude-code` proxy，讓你用 NVIDIA NIM 免費跑 Claude Code。
+
+## 檔案說明
+
+```
+fcc-setup/
+├── install.sh      # Linux (Ubuntu/Debian) 安裝腳本
+├── install.ps1     # Windows PowerShell 安裝腳本
+└── README.md       # 本說明
+```
+
+## 使用方式
+
+### Linux
+
+```bash
+# 方式一：帶 API key 直接執行（推薦，不用互動輸入）
+NVIDIA_NIM_API_KEY="nvapi-你的key" bash install.sh
+
+# 方式二：互動輸入 key
+bash install.sh
+```
+
+### Windows (PowerShell)
+
+```powershell
+# 方式一：帶 API key 直接執行（推薦）
+$env:NVIDIA_NIM_API_KEY="nvapi-你的key"; .\install.ps1
+
+# 方式二：互動輸入 key
+.\install.ps1
+```
+
+> 第一次執行可能需要先允許 script 執行：
+> `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+---
+
+## 安裝後可用指令
+
+| 指令 | 說明 |
+|------|------|
+| `fcc-claude` | 啟動 Claude Code（已自動接上 proxy） |
+| `fcc-status` | 查看 proxy 狀態 |
+| `fcc-start` | 啟動 proxy |
+| `fcc-stop` | 停止 proxy |
+| `fcc-restart` | 重啟 proxy |
+| `fcc-log` | 即時查看 log |
+
+---
+
+## 設定檔位置
+
+| 系統 | 路徑 |
+|------|------|
+| Linux | `~/.config/free-claude-code/.env` |
+| Windows | `%APPDATA%\free-claude-code\.env` |
+
+想換模型或調整設定，直接編輯 `.env` 後執行 `fcc-restart`。
+
+---
+
+## 自動啟動機制
+
+| 系統 | 方式 |
+|------|------|
+| Linux | systemd user service（`~/.config/systemd/user/free-claude-code.service`） |
+| Windows | Task Scheduler（登入時自動執行） |
+
+---
+
+## 常用模型（NIM 免費層）
+
+```env
+MODEL="nvidia_nim/z-ai/glm4.7"                  # 預設，綜合表現好
+MODEL_OPUS="nvidia_nim/moonshotai/kimi-k2.5"    # 重任務
+MODEL_SONNET="nvidia_nim/z-ai/glm4.7"           # 中等任務
+MODEL_HAIKU="nvidia_nim/z-ai/glm4.7"            # 輕任務
+```
+
+可至 [build.nvidia.com](https://build.nvidia.com/explore/discover) 查看所有可用模型。
+
+---
+
+## API Key 申請
+
+1. 前往 <https://build.nvidia.com/settings/api-keys>
+2. 用 Google 或 GitHub 登入
+3. 點 **Get API Key**
+4. 複製 `nvapi-` 開頭的 key
+
+免費額度：40 req/min

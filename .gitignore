@@ -1,0 +1,35 @@
+# ── 絕對不能上傳 ──────────────────────────────
+.env
+*.env
+.env.*
+**/apkey.cfg
+**/.env
+
+# ── 系統檔 ────────────────────────────────────
+.DS_Store
+.DS_Store?
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ── Log ───────────────────────────────────────
+*.log
+logs/
+
+# ── Python ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.Python
+
+# ── Node ──────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── IDE ───────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
