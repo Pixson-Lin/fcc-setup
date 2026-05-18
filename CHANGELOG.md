@@ -4,6 +4,15 @@
 
 ---
 
+## [1.3.1] - 2026-05-18
+
+### Changed
+- `README.md`：重寫結構（快速指引、同事安裝前置 API Key）、全形標點與括號統一
+- `install.sh`：預設 NIM 模型路由與 `install.ps1` 對齊
+- `install.ps1` / `install.sh`：`FCC_SETUP_VERSION` 升為 **1.3.1**（新寫入的 `install-manifest.json` 會反映此版號）
+
+---
+
 ## [1.3.0] - 2026-05-17
 
 ### Added

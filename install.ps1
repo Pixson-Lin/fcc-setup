@@ -25,7 +25,7 @@ $RATE_WINDOW        = 3
 $MAX_CONCURRENCY    = 3
 $ANTHROPIC_AUTH_TOKEN = "freecc"
 
-$FCC_SETUP_VERSION  = "1.3.0"
+$FCC_SETUP_VERSION  = "1.3.1"
 $FCC_MANIFEST       = "$FCC_CONFIG_DIR\install-manifest.json"
 $FCC_ARCHIVE_URL    = "https://github.com/Alishahryar1/free-claude-code/archive/refs/heads/main.zip"
 $FCC_API_COMMITS    = "https://api.github.com/repos/Alishahryar1/free-claude-code/commits/main"

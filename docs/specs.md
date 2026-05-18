@@ -55,7 +55,8 @@ fcc-setup/
 | v1.0.0 | 已發布 | Linux + Windows 安裝腳本，systemd + Task Scheduler |
 | v1.1.0 | 已發布 | `install.bat` 啟動器、PowerShell 5.1 編碼與相容性修復 |
 | v1.2.0 | 已發布 | 背景啟動 proxy、log 導向 `fcc-error.log`、`fcc-status` / `fcc-kill`、安裝穩定性 |
-| **v1.3.0** | **規劃中** | **同事一鍵安裝（相依性自動化、fcc 改 GitHub zip）、install manifest、反安裝腳本** |
+| **v1.3.0** | **已發布** | **同事一鍵安裝（相依性自動化、fcc 改 GitHub zip）、install manifest、反安裝腳本** |
+| **v1.3.1** | **已發布** | **README 重寫與標點整理、`install.sh` 預設模型與 Windows 對齊、manifest 版號常數 1.3.1** |
 | v1.4.0+ | 待定 | macOS launchd、`update.sh` / `update.ps1`（一鍵更新 fcc） |
 
 版號格式遵循 [Semantic Versioning](https://semver.org/)。
@@ -202,7 +203,7 @@ manifest 欄位見 Install Manifest 章節（`commit` 為必填）。
 
 ```json
 {
-  "fcc_setup_version": "1.3.0",
+  "fcc_setup_version": "1.3.1",
   "installed_at": "2026-05-17T12:00:00+08:00",
   "platform": "windows",
   "items": [
@@ -343,7 +344,7 @@ manifest 欄位見 Install Manifest 章節（`commit` 為必填）。
 ### Task 4：文件
 
 - [ ] 更新 [README.md](../README.md)：同事從 Release 安裝、反安裝說明
-- [ ] [CHANGELOG.md](../CHANGELOG.md) 新增 v1.3.0 條目
+- [x] [CHANGELOG.md](../CHANGELOG.md) 新增 v1.3.0 / v1.3.1 條目
 
 ### Task 5：驗證
 
