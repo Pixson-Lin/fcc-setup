@@ -24,10 +24,10 @@ FCC_PORT=8082
 FCC_LOG_DIR="$HOME/.local/share/free-claude-code/logs"
 
 # Model 路由設定（依需求調整）
-MODEL_DEFAULT="nvidia_nim/z-ai/glm4.7"
-MODEL_OPUS="nvidia_nim/moonshotai/kimi-k2.5"
-MODEL_SONNET="nvidia_nim/z-ai/glm4.7"
-MODEL_HAIKU="nvidia_nim/z-ai/glm4.7"
+MODEL_DEFAULT="nvidia_nim/mistralai/mistral-nemotron"
+MODEL_OPUS="nvidia_nim/qwen/qwen3-coder-480b-a35b-instruct"
+MODEL_SONNET="nvidia_nim/mistralai/mistral-nemotron"
+MODEL_HAIKU="nvidia_nim/stepfun-ai/step-3.5-flash"
 
 # Rate limit（NIM 免費層建議保持這個值）
 RATE_LIMIT=1
