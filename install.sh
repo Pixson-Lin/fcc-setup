@@ -52,11 +52,25 @@ get_api_key() {
     return
   fi
   if [[ -f "$FCC_ENV" ]] && grep -q "NVIDIA_NIM_API_KEY=" "$FCC_ENV" 2>/dev/null; then
-    local existing
+    local existing masked new_key
     existing=$(grep "NVIDIA_NIM_API_KEY=" "$FCC_ENV" | cut -d= -f2- | tr -d '"')
     if [[ -n "$existing" && "$existing" != '""' ]]; then
-      info "偵測到已有設定的 API key，跳過輸入"
-      NVIDIA_NIM_API_KEY="$existing"
+      if [[ ${#existing} -le 12 ]]; then
+        masked="***"
+      else
+        masked="${existing:0:8}...${existing: -4}"
+      fi
+      echo ""
+      echo -e "${YELLOW}偵測到已有 API key：${masked}${NC}"
+      echo -e "  按 Enter 沿用，或輸入新 key 覆蓋"
+      echo -n "  API Key (nvapi-...): "
+      read -r new_key
+      if [[ -n "$new_key" ]]; then
+        NVIDIA_NIM_API_KEY="$new_key"
+      else
+        info "沿用既有 API key"
+        NVIDIA_NIM_API_KEY="$existing"
+      fi
       return
     fi
   fi

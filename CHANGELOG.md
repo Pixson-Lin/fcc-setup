@@ -4,6 +4,27 @@
 
 ---
 
+## [1.2.0] - 2026-05-17
+
+### Added
+- Windows：已有 API key 時提示遮罩預覽，可 Enter 沿用或輸入新 key
+- Windows：`fcc-kill`、`fcc-status` 增加 port / API 健康檢查
+- Windows：Profile alias 支援自動更新（重跑安裝會覆寫舊版函式）
+- `README.md`：補充 log 路徑說明（`fcc.log` / `fcc-error.log`）
+
+### Fixed
+- `install.bat`：改為純 ASCII，避免 CMD 解析 UTF-8 中文失敗
+- `install.ps1`：`uv` 的 stderr info 不再觸發 `$ErrorActionPreference Stop` 中斷安裝
+- `install.ps1`：安裝 fcc 前自動停止殘留程序，避免 `uv tool install` 存取被拒
+- `install.ps1`：修正背景啟動（改直接 `Start-Process`，不再用無效的 `cmd >>` 包裝）
+- `install.ps1`：`.env` 改以 `$env:` 注入，proxy 可正常讀取 API key
+- `install.ps1`：log 正確導向 `fcc-error.log`（uvicorn 主輸出）
+
+### Changed
+- `install.sh`：已有 API key 時改為互動確認（與 Windows 一致）
+
+---
+
 ## [1.1.0] - 2026-05-17
 
 ### Added

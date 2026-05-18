@@ -75,6 +75,17 @@ $env:NVIDIA_NIM_API_KEY="nvapi-你的key"; .\install.ps1
 
 ---
 
+## Log 位置
+
+| 系統 | stdout | stderr |
+|------|--------|--------|
+| Linux | `~/.local/share/free-claude-code/logs/fcc.log` | `.../fcc-error.log` |
+| Windows | `%LOCALAPPDATA%\free-claude-code\logs\fcc.log` | `.../fcc-error.log` |
+
+`fcc-log` 會同時追蹤上述檔案（若存在）。
+
+---
+
 ## 自動啟動機制
 
 | 系統 | 方式 |
