@@ -6,11 +6,25 @@
 
 ```
 fcc-setup/
-├── install.sh      # Linux (Ubuntu/Debian) 安裝腳本
-├── install.bat     # Windows CMD 啟動器（推薦，雙擊即可）
-├── install.ps1     # Windows PowerShell 安裝腳本（實際安裝邏輯）
-└── README.md       # 本說明
+├── install.sh       # Linux (Ubuntu/Debian) 安裝腳本
+├── install.bat      # Windows CMD 啟動器（推薦，雙擊即可）
+├── install.ps1      # Windows PowerShell 安裝腳本（實際安裝邏輯）
+├── uninstall.sh     # Linux 反安裝
+├── uninstall.bat    # Windows CMD 反安裝啟動器
+├── uninstall.ps1    # Windows 反安裝邏輯
+└── README.md        # 本說明
 ```
+
+## 同事一鍵安裝（v1.3）
+
+1. 至 [fcc-setup Releases](https://github.com/Pixson-Lin/fcc-setup/releases) 下載 **Source code (zip)**
+2. 解壓後進入資料夾
+3. **Windows：** 雙擊 `install.bat`（不需安裝 git、不需懂 PowerShell）
+4. **Linux：** `bash install.sh`（需 `curl`、`sudo` 僅在自動安裝 Node 時使用）
+
+安裝結束會寫入 `install-manifest.json`，記錄各元件是否由腳本安裝，以及 proxy 對應的 upstream **commit**。
+
+**反安裝：** 雙擊 `uninstall.bat`（Windows）或 `bash uninstall.sh`（Linux）。預設移除 proxy、設定、排程與 alias；進階選項可移除腳本當初安裝的 uv / Python / Claude Code 等。
 
 ## 使用方式
 
@@ -71,6 +85,8 @@ $env:NVIDIA_NIM_API_KEY="nvapi-你的key"; .\install.ps1
 | Linux | `~/.config/free-claude-code/.env` |
 | Windows | `%APPDATA%\free-claude-code\.env` |
 
+安裝紀錄（反安裝用）：同目錄下的 `install-manifest.json`。
+
 想換模型或調整設定，直接編輯 `.env` 後執行 `fcc-restart`。
 
 ---
@@ -82,7 +98,7 @@ $env:NVIDIA_NIM_API_KEY="nvapi-你的key"; .\install.ps1
 | Linux | `~/.local/share/free-claude-code/logs/fcc.log` | `.../fcc-error.log` |
 | Windows | `%LOCALAPPDATA%\free-claude-code\logs\fcc.log` | `.../fcc-error.log` |
 
-`fcc-log` 會同時追蹤上述檔案（若存在）。
+`fcc-log` 會先列出 log 路徑、顯示各檔最近 100 行，再即時追蹤（Ctrl+C 結束）。
 
 ---
 

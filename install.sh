@@ -35,7 +35,40 @@ RATE_WINDOW=3
 MAX_CONCURRENCY=3
 
 ANTHROPIC_AUTH_TOKEN="freecc"
+
+FCC_SETUP_VERSION="1.3.0"
+FCC_MANIFEST="$FCC_CONFIG_DIR/install-manifest.json"
+FCC_ARCHIVE_URL="https://github.com/Alishahryar1/free-claude-code/archive/refs/heads/main.zip"
+FCC_API_COMMITS="https://api.github.com/repos/Alishahryar1/free-claude-code/commits/main"
+FCC_EXTRACT_DIR="free-claude-code-main"
 # ─────────────────────────────────────────────────────────────────────────────
+
+MANIFEST_ENTRIES=()
+
+manifest_add() {
+  MANIFEST_ENTRIES+=("$1")
+}
+
+write_manifest() {
+  mkdir -p "$FCC_CONFIG_DIR"
+  local installed_at
+  installed_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')"
+  {
+    echo '{'
+    echo "  \"fcc_setup_version\": \"$FCC_SETUP_VERSION\","
+    echo "  \"installed_at\": \"$installed_at\","
+    echo '  "platform": "linux",'
+    echo '  "items": ['
+    local i
+    for i in "${!MANIFEST_ENTRIES[@]}"; do
+      [[ $i -gt 0 ]] && echo ','
+      echo "    ${MANIFEST_ENTRIES[$i]}"
+    done
+    echo '  ]'
+    echo '}'
+  } > "$FCC_MANIFEST"
+  success "安裝紀錄已寫入 $FCC_MANIFEST"
+}
 
 banner() {
   echo -e "${BOLD}"
@@ -86,61 +119,155 @@ get_api_key() {
 
 # ── Step 2: 安裝 uv ──────────────────────────────────────────────────────────
 install_uv() {
+  local existed=false uv_path
   if command -v uv &>/dev/null; then
+    existed=true
     success "uv 已安裝 ($(uv --version))"
     uv self update 2>/dev/null || true
-    return
+  else
+    info "安裝 uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+    if ! command -v uv &>/dev/null; then
+      error "uv 安裝失敗，請手動安裝: https://docs.astral.sh/uv/"
+    fi
+    success "uv 安裝完成"
   fi
-  info "安裝 uv..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
-  if ! command -v uv &>/dev/null; then
-    error "uv 安裝失敗，請手動安裝: https://docs.astral.sh/uv/"
+  uv_path="$(command -v uv)"
+  if $existed; then
+    manifest_add "{\"id\":\"uv\",\"method\":\"astral-installer\",\"installed_by_script\":false,\"path\":\"$uv_path\"}"
+  else
+    manifest_add "{\"id\":\"uv\",\"method\":\"astral-installer\",\"installed_by_script\":true,\"path\":\"$uv_path\"}"
   fi
-  success "uv 安裝完成"
 }
 
 # ── Step 3: 安裝 Python 3.14 ─────────────────────────────────────────────────
 install_python() {
+  local had314=false
   if uv python list 2>/dev/null | grep -q "3.14"; then
+    had314=true
     success "Python 3.14 已安裝"
+  else
+    info "安裝 Python 3.14..."
+    uv python install 3.14
+    success "Python 3.14 安裝完成"
+  fi
+  if $had314; then
+    manifest_add '{"id":"python","version":"3.14","installed_by_script":false}'
+  else
+    manifest_add '{"id":"python","version":"3.14","installed_by_script":true}'
+  fi
+}
+
+# ── Step 3b: 安裝 Node.js ────────────────────────────────────────────────────
+install_node() {
+  if command -v npm &>/dev/null; then
+    success "Node.js 已安裝"
+    manifest_add '{"id":"nodejs","installed_by_script":false,"method":"existing"}'
     return
   fi
-  info "安裝 Python 3.14..."
-  uv python install 3.14
-  success "Python 3.14 安裝完成"
+  info "安裝 Node.js (apt)..."
+  if sudo apt-get update -qq && sudo apt-get install -y nodejs npm; then
+    success "Node.js 安裝完成"
+    manifest_add '{"id":"nodejs","installed_by_script":true,"method":"apt"}'
+  else
+    error "Node.js 安裝失敗。請至 https://nodejs.org 手動安裝後重試。"
+  fi
 }
 
 # ── Step 4: 安裝 Claude Code ─────────────────────────────────────────────────
 install_claude_code() {
+  local had_claude=false
   if command -v claude &>/dev/null; then
+    had_claude=true
     success "Claude Code 已安裝"
-    return
+  else
+    info "安裝 Claude Code..."
+    npm install -g @anthropic-ai/claude-code
+    success "Claude Code 安裝完成"
   fi
-  if ! command -v npm &>/dev/null && ! command -v node &>/dev/null; then
-    warn "未偵測到 Node.js，嘗試用 nvm 安裝..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    # shellcheck source=/dev/null
-    [[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
-    nvm install --lts
+  if $had_claude; then
+    manifest_add '{"id":"claude-code","method":"npm-global","package":"@anthropic-ai/claude-code","installed_by_script":false}'
+  else
+    manifest_add '{"id":"claude-code","method":"npm-global","package":"@anthropic-ai/claude-code","installed_by_script":true}'
   fi
-  info "安裝 Claude Code..."
-  npm install -g @anthropic-ai/claude-code
-  success "Claude Code 安裝完成"
+}
+
+get_fcc_main_commit() {
+  curl -fsSL -H "User-Agent: fcc-setup/$FCC_SETUP_VERSION" "$FCC_API_COMMITS" |
+    grep -o '"sha":"[a-f0-9]\{40\}"' | head -1 | cut -d'"' -f4
+}
+
+stop_fcc() {
+  systemctl --user stop free-claude-code 2>/dev/null || true
+  pkill -f 'free-claude-code' 2>/dev/null || true
+  sleep 2
 }
 
 # ── Step 5: 安裝 free-claude-code proxy ──────────────────────────────────────
 install_fcc() {
-  info "安裝 free-claude-code proxy..."
-  uv tool install "git+https://github.com/Alishahryar1/free-claude-code.git" --force
-  # 確保 uv tool bin 在 PATH
+  local commit_before commit_after commit tmpdir zip extract_root src_dir pkg_version short_sha
+  stop_fcc
+  commit_before="$(get_fcc_main_commit)"
+  tmpdir="$(mktemp -d)"
+  zip="$tmpdir/main.zip"
+  extract_root="$tmpdir/extract"
+  mkdir -p "$extract_root"
+
+  info "下載 free-claude-code (main)..."
+  curl -fsSL -o "$zip" "$FCC_ARCHIVE_URL"
+
+  commit_after="$(get_fcc_main_commit)"
+  commit="$commit_after"
+  if [[ "$commit_after" != "$commit_before" ]]; then
+    warn "main 分支 commit 在下載期間變動，使用下載後 commit: ${commit:0:7}"
+  fi
+
+  if command -v unzip &>/dev/null; then
+    unzip -q "$zip" -d "$extract_root"
+  elif command -v python3 &>/dev/null; then
+    python3 -m zipfile -e "$zip" "$extract_root"
+  else
+    rm -rf "$tmpdir"
+    error "需要 unzip 或 python3 以解壓 main.zip"
+  fi
+
+  src_dir="$extract_root/$FCC_EXTRACT_DIR"
+  if [[ ! -d "$src_dir" ]]; then
+    rm -rf "$tmpdir"
+    error "解壓後找不到目錄 $FCC_EXTRACT_DIR"
+  fi
+
+  pkg_version="$(grep -E '^\s*version\s*=' "$src_dir/pyproject.toml" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  short_sha="${commit:0:7}"
+  if [[ -n "$pkg_version" ]]; then
+    info "安裝 free-claude-code ($short_sha, v$pkg_version)..."
+  else
+    info "安裝 free-claude-code ($short_sha)..."
+  fi
+
+  uv tool install "$src_dir" --force || {
+    warn "安裝受阻，再次停止程序後重試..."
+    stop_fcc
+    sleep 3
+    uv tool install "$src_dir" --force
+  }
+
   local uv_bin
   uv_bin="$(uv tool dir)/../bin"
   if [[ ":$PATH:" != *":$uv_bin:"* ]]; then
     export PATH="$uv_bin:$PATH"
   fi
-  success "free-claude-code 安裝完成"
+
+  rm -rf "$tmpdir"
+
+  if [[ -n "$pkg_version" ]]; then
+    success "free-claude-code 安裝完成 ($short_sha, v$pkg_version)"
+    manifest_add "{\"id\":\"free-claude-code\",\"method\":\"github-archive\",\"ref\":\"main\",\"commit\":\"$commit\",\"url\":\"$FCC_ARCHIVE_URL\",\"extract_dir\":\"$FCC_EXTRACT_DIR\",\"package_version\":\"$pkg_version\",\"installed_by_script\":true}"
+  else
+    success "free-claude-code 安裝完成 ($short_sha)"
+    manifest_add "{\"id\":\"free-claude-code\",\"method\":\"github-archive\",\"ref\":\"main\",\"commit\":\"$commit\",\"url\":\"$FCC_ARCHIVE_URL\",\"extract_dir\":\"$FCC_EXTRACT_DIR\",\"installed_by_script\":true}"
+  fi
 }
 
 # ── Step 6: 寫入設定檔 ────────────────────────────────────────────────────────
@@ -233,20 +360,45 @@ alias fcc-status='systemctl --user status free-claude-code'
 alias fcc-start='systemctl --user start free-claude-code'
 alias fcc-stop='systemctl --user stop free-claude-code'
 alias fcc-restart='systemctl --user restart free-claude-code'
-alias fcc-log='tail -f ~/.local/share/free-claude-code/logs/fcc.log'
+fcc-log() {
+  local log_dir="$HOME/.local/share/free-claude-code/logs"
+  local stdout="$log_dir/fcc.log" stderr="$log_dir/fcc-error.log"
+  echo -e "\033[0;36mfcc-log\033[0m"
+  echo "  stdout: $stdout"
+  echo "  stderr: $stderr"
+  echo ""
+  local files=()
+  [[ -f "$stdout" ]] && files+=("$stdout")
+  [[ -f "$stderr" ]] && files+=("$stderr")
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo -e "\033[1;33m尚無 log 檔\033[0m"
+    return 1
+  fi
+  for f in "${files[@]}"; do
+    echo -e "\033[90m--- $f (recent 100) ---\033[0m"
+    tail -n 100 "$f"
+    echo ""
+  done
+  echo -e "\033[90m--- live (Ctrl+C to exit) ---\033[0m"
+  tail -n 0 -f "${files[@]}"
+}
 alias fcc-claude='ANTHROPIC_AUTH_TOKEN="freecc" ANTHROPIC_BASE_URL="http://localhost:8082" CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1 claude'
 # ─────────────────────────────────────────────
 ALIASES
 )
 
+  local marker="# ── free-claude-code aliases"
+  local end_marker="# ─────────────────────────────────────────────"
   for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-    if [[ -f "$rc" ]]; then
-      if grep -q "free-claude-code aliases" "$rc" 2>/dev/null; then
-        info "$(basename $rc) 已有 alias，跳過"
-      else
-        echo "$alias_block" >> "$rc"
-        success "Alias 已寫入 $(basename $rc)"
-      fi
+    [[ -f "$rc" ]] || continue
+    if grep -q "free-claude-code aliases" "$rc" 2>/dev/null; then
+      sed -i "/${marker}/,/${end_marker}/d" "$rc" 2>/dev/null || \
+        sed -i '' "/${marker}/,/${end_marker}/d" "$rc" 2>/dev/null || true
+      echo "$alias_block" >> "$rc"
+      success "Alias 已更新 $(basename "$rc")"
+    else
+      echo "$alias_block" >> "$rc"
+      success "Alias 已寫入 $(basename "$rc")"
     fi
   done
 }
@@ -269,11 +421,18 @@ main() {
   get_api_key
   install_uv
   install_python
+  install_node
   install_claude_code
   install_fcc
   write_config
   install_systemd_service
   write_aliases
+
+  manifest_add "{\"id\":\"config\",\"path\":\"$FCC_ENV\"}"
+  manifest_add '{"id":"service","type":"systemd-user","name":"free-claude-code"}'
+  manifest_add '{"id":"shell-aliases","target":"bashrc"}'
+  write_manifest
+
   verify
 
   echo ""

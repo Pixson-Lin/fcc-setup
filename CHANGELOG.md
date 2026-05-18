@@ -4,6 +4,23 @@
 
 ---
 
+## [1.3.0] - 2026-05-17
+
+### Added
+- **Install manifest**：安裝結束寫入 `install-manifest.json`（記錄 `installed_by_script`、free-claude-code 的 `commit` / `package_version`）
+- **反安裝**：`uninstall.bat` / `uninstall.ps1` / `uninstall.sh`（讀 manifest、預設移除 fcc 核心、進階可選移除腳本安裝的相依）
+- Windows：**Node.js LTS** 缺漏時以 `winget install OpenJS.NodeJS.LTS` 自動安裝
+- Linux：**Node.js** 缺漏時以 `apt install nodejs npm` 自動安裝（失敗則導向 nodejs.org）
+
+### Changed
+- **free-claude-code 來源**：由 `git+https://...` 改為下載 GitHub `main` zip + `uv tool install` 本機路徑（**不需系統 git**）
+- 安裝 log 會印出 upstream commit 短碼與 `pyproject.toml` 版本
+
+### Removed
+- Linux 安裝流程不再使用 nvm 安裝 Node（改為 apt）
+
+---
+
 ## [1.2.0] - 2026-05-17
 
 ### Added

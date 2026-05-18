@@ -24,7 +24,33 @@ $RATE_LIMIT         = 1
 $RATE_WINDOW        = 3
 $MAX_CONCURRENCY    = 3
 $ANTHROPIC_AUTH_TOKEN = "freecc"
+
+$FCC_SETUP_VERSION  = "1.3.0"
+$FCC_MANIFEST       = "$FCC_CONFIG_DIR\install-manifest.json"
+$FCC_ARCHIVE_URL    = "https://github.com/Alishahryar1/free-claude-code/archive/refs/heads/main.zip"
+$FCC_API_COMMITS    = "https://api.github.com/repos/Alishahryar1/free-claude-code/commits/main"
+$FCC_EXTRACT_DIR    = "free-claude-code-main"
 # ─────────────────────────────────────────────────────────────────────────────
+
+$script:ManifestItems = @()
+$script:FccArchiveMeta = $null
+
+function Add-ManifestItem {
+    param([hashtable]$Item)
+    $script:ManifestItems += [PSCustomObject]$Item
+}
+
+function Write-Manifest {
+    New-Item -ItemType Directory -Force -Path $FCC_CONFIG_DIR | Out-Null
+    $manifest = [ordered]@{
+        fcc_setup_version = $FCC_SETUP_VERSION
+        installed_at      = (Get-Date).ToString("o")
+        platform          = "windows"
+        items             = $script:ManifestItems
+    }
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -Path $FCC_MANIFEST -Encoding UTF8
+    Write-Success "安裝紀錄已寫入 $FCC_MANIFEST"
+}
 
 function Write-Banner {
     Write-Host ""
@@ -93,46 +119,91 @@ function Get-ApiKey {
 
 # ── Step 2: 安裝 uv ──────────────────────────────────────────────────────────
 function Install-Uv {
-    if (Get-Command uv -ErrorAction SilentlyContinue) {
+    $existed = [bool](Get-Command uv -ErrorAction SilentlyContinue)
+    if ($existed) {
         Write-Success "uv 已安裝"
         Invoke-Native { uv self update } -Quiet
-        return
+    } else {
+        Write-Info "安裝 uv..."
+        powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+        $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
+        if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+            Write-Err "uv 安裝失敗，請手動安裝: https://docs.astral.sh/uv/"
+        }
+        Write-Success "uv 安裝完成"
     }
-    Write-Info "安裝 uv..."
-    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-    $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
-    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-        Write-Err "uv 安裝失敗，請手動安裝: https://docs.astral.sh/uv/"
+    $uvPath = (Get-Command uv -ErrorAction SilentlyContinue).Source
+    Add-ManifestItem @{
+        id                   = "uv"
+        method               = "astral-installer"
+        installed_by_script  = (-not $existed)
+        path                 = $uvPath
     }
-    Write-Success "uv 安裝完成"
 }
 
 # ── Step 3: 安裝 Python 3.14 ─────────────────────────────────────────────────
 function Install-Python {
-    $installed = Invoke-Native { uv python list } | Select-String "3.14"
-    if ($installed) {
+    $had314 = [bool](Invoke-Native { uv python list } | Select-String "3.14")
+    if ($had314) {
         Write-Success "Python 3.14 已安裝"
+    } else {
+        Write-Info "安裝 Python 3.14..."
+        Invoke-Native { uv python install 3.14 }
+        if ($LASTEXITCODE -ne 0) { Write-Err "Python 3.14 安裝失敗" }
+        Write-Success "Python 3.14 安裝完成"
+    }
+    Add-ManifestItem @{
+        id                  = "python"
+        version             = "3.14"
+        installed_by_script = (-not $had314)
+    }
+}
+
+# ── Step 3b: 安裝 Node.js ────────────────────────────────────────────────────
+function Install-Node {
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+        Write-Success "Node.js 已安裝"
+        Add-ManifestItem @{ id = "nodejs"; installed_by_script = $false; method = "existing" }
         return
     }
-    Write-Info "安裝 Python 3.14..."
-    Invoke-Native { uv python install 3.14 }
-    if ($LASTEXITCODE -ne 0) { Write-Err "Python 3.14 安裝失敗" }
-    Write-Success "Python 3.14 安裝完成"
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Err @"
+未找到 winget，無法自動安裝 Node.js。
+請至 https://nodejs.org 下載安裝 LTS 後重新執行 install.bat
+"@
+    }
+    Write-Info "安裝 Node.js LTS (winget)..."
+    Invoke-Native {
+        winget install OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+    }
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+                [System.Environment]::GetEnvironmentVariable("Path", "User")
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Write-Err @"
+Node.js 安裝失敗。
+請至 https://nodejs.org 下載安裝 LTS 後重新執行 install.bat
+"@
+    }
+    Write-Success "Node.js 安裝完成"
+    Add-ManifestItem @{ id = "nodejs"; installed_by_script = $true; method = "winget" }
 }
 
 # ── Step 4: 安裝 Claude Code ─────────────────────────────────────────────────
 function Install-ClaudeCode {
-    if (Get-Command claude -ErrorAction SilentlyContinue) {
+    $hadClaude = [bool](Get-Command claude -ErrorAction SilentlyContinue)
+    if ($hadClaude) {
         Write-Success "Claude Code 已安裝"
-        return
+    } else {
+        Write-Info "安裝 Claude Code..."
+        npm install -g @anthropic-ai/claude-code
+        Write-Success "Claude Code 安裝完成"
     }
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        Write-Warn "未偵測到 Node.js，請先至 https://nodejs.org 安裝 LTS 版本後重新執行"
-        Write-Err "缺少 Node.js"
+    Add-ManifestItem @{
+        id                  = "claude-code"
+        method              = "npm-global"
+        package             = "@anthropic-ai/claude-code"
+        installed_by_script = (-not $hadClaude)
     }
-    Write-Info "安裝 Claude Code..."
-    npm install -g @anthropic-ai/claude-code
-    Write-Success "Claude Code 安裝完成"
 }
 
 # ── Step 5: 安裝 free-claude-code proxy ──────────────────────────────────────
@@ -151,19 +222,85 @@ function Stop-Fcc {
     Start-Sleep -Seconds 2
 }
 
-function Install-Fcc {
-    $fccPkg = "git+https://github.com/Alishahryar1/free-claude-code.git"
+function Get-FccMainCommit {
+    $headers = @{ "User-Agent" = "fcc-setup/$FCC_SETUP_VERSION" }
+    try {
+        $resp = Invoke-RestMethod -Uri $FCC_API_COMMITS -Headers $headers -UseBasicParsing
+        return $resp.sha
+    } catch {
+        Write-Warn "無法連線 GitHub API（$($_.Exception.Message)），略過 commit 查詢"
+        return $null
+    }
+}
 
+function Get-FccPackageVersion {
+    param([string]$SrcDir)
+    $pyproject = Join-Path $SrcDir "pyproject.toml"
+    if (-not (Test-Path $pyproject)) { return $null }
+    $m = Select-String -Path $pyproject -Pattern '^\s*version\s*=\s*"([^"]+)"' | Select-Object -First 1
+    if ($m) { return $m.Matches.Groups[1].Value }
+    return $null
+}
+
+function Install-FccFromArchive {
+    param([string]$SrcDir)
+    Invoke-Native { uv tool install $SrcDir --force }
+}
+
+function Install-Fcc {
     Stop-Fcc
-    Write-Info "安裝 free-claude-code proxy..."
-    Invoke-Native { uv tool install $fccPkg --force }
+
+    $commitBefore = Get-FccMainCommit
+    $tmpdir = Join-Path $env:TEMP "fcc-setup-fcc-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+    $zipPath = Join-Path $tmpdir "main.zip"
+    $extractRoot = Join-Path $tmpdir "extract"
+    New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+
+    Write-Info "下載 free-claude-code (main)..."
+    try {
+        Invoke-WebRequest -Uri $FCC_ARCHIVE_URL -OutFile $zipPath -UseBasicParsing
+    } catch {
+        Remove-Item $tmpdir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Err "無法下載 main.zip（$($_.Exception.Message)）。請確認可連線 github.com 後重試。"
+    }
+
+    $commitAfter = Get-FccMainCommit
+    if ($commitAfter -and $commitBefore -and $commitAfter -ne $commitBefore) {
+        Write-Warn "main 分支 commit 在下載期間變動，使用下載後 commit: $($commitAfter.Substring(0, 7))"
+        $commit = $commitAfter
+    } elseif ($commitAfter) {
+        $commit = $commitAfter
+    } elseif ($commitBefore) {
+        $commit = $commitBefore
+    } else {
+        $commit = "unknown"
+        Write-Warn "未能取得 commit SHA，manifest 將記錄為 unknown"
+    }
+
+    Expand-Archive -Path $zipPath -DestinationPath $extractRoot -Force
+    $srcDir = Join-Path $extractRoot $FCC_EXTRACT_DIR
+    if (-not (Test-Path $srcDir)) {
+        Remove-Item $tmpdir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Err "解壓後找不到目錄 $FCC_EXTRACT_DIR"
+    }
+
+    $pkgVersion = Get-FccPackageVersion $srcDir
+    $shortSha = if ($commit -eq "unknown") { "unknown" } else { $commit.Substring(0, [Math]::Min(7, $commit.Length)) }
+    if ($pkgVersion) {
+        Write-Info "安裝 free-claude-code ($shortSha, v$pkgVersion)..."
+    } else {
+        Write-Info "安裝 free-claude-code ($shortSha)..."
+    }
+
+    Install-FccFromArchive $srcDir
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "安裝受阻，再次停止程序後重試..."
         Stop-Fcc
         Start-Sleep -Seconds 3
-        Invoke-Native { uv tool install $fccPkg --force }
+        Install-FccFromArchive $srcDir
     }
     if ($LASTEXITCODE -ne 0) {
+        Remove-Item $tmpdir -Recurse -Force -ErrorAction SilentlyContinue
         Write-Err @"
 free-claude-code 安裝失敗（常見原因：程序仍佔用檔案）。
 請先：
@@ -172,7 +309,33 @@ free-claude-code 安裝失敗（常見原因：程序仍佔用檔案）。
   3. 再執行 install.bat
 "@
     }
-    Write-Success "free-claude-code 安裝完成"
+
+    $script:FccArchiveMeta = @{
+        method           = "github-archive"
+        ref              = "main"
+        commit           = $commit
+        url              = $FCC_ARCHIVE_URL
+        extract_dir      = $FCC_EXTRACT_DIR
+        package_version  = $pkgVersion
+    }
+
+    Remove-Item $tmpdir -Recurse -Force -ErrorAction SilentlyContinue
+    if ($pkgVersion) {
+        Write-Success "free-claude-code 安裝完成 ($shortSha, v$pkgVersion)"
+    } else {
+        Write-Success "free-claude-code 安裝完成 ($shortSha)"
+    }
+
+    Add-ManifestItem @{
+        id                  = "free-claude-code"
+        method              = "github-archive"
+        ref                 = "main"
+        commit              = $commit
+        url                 = $FCC_ARCHIVE_URL
+        extract_dir         = $FCC_EXTRACT_DIR
+        package_version     = $pkgVersion
+        installed_by_script = $true
+    }
 }
 
 # ── Step 6: 寫入設定檔 ────────────────────────────────────────────────────────
@@ -329,8 +492,24 @@ function fcc-start   {
 function fcc-stop    { fcc-kill; Write-Host "Proxy 已停止" -ForegroundColor Yellow }
 function fcc-restart { fcc-stop; Start-Sleep -Seconds 2; fcc-start }
 function fcc-log     {
-    `$logs = @('$FCC_LOG_DIR\fcc.log', '$FCC_LOG_DIR\fcc-error.log') | Where-Object { Test-Path `$_ }
-    if (`$logs) { Get-Content `$logs -Tail 50 -Wait } else { Write-Host '尚無 log 檔' -ForegroundColor Yellow }
+    `$stdout = '$FCC_LOG_DIR\fcc.log'
+    `$stderr = '$FCC_LOG_DIR\fcc-error.log'
+    Write-Host 'fcc-log' -ForegroundColor Cyan
+    Write-Host "  stdout: `$stdout"
+    Write-Host "  stderr: `$stderr"
+    Write-Host ''
+    `$existing = @(`$stdout, `$stderr) | Where-Object { Test-Path `$_ }
+    if (-not `$existing) {
+        Write-Host '尚無 log 檔' -ForegroundColor Yellow
+        return
+    }
+    foreach (`$p in `$existing) {
+        Write-Host "--- `$p (recent 100) ---" -ForegroundColor DarkGray
+        Get-Content -Path `$p -Tail 100
+        Write-Host ''
+    }
+    Write-Host '--- live (Ctrl+C to exit) ---' -ForegroundColor DarkGray
+    Get-Content -Path `$existing -Tail 0 -Wait
 }
 function fcc-claude  {
     `$env:ANTHROPIC_AUTH_TOKEN = "$ANTHROPIC_AUTH_TOKEN"
@@ -374,11 +553,18 @@ Write-Banner
 $ApiKey = Get-ApiKey
 Install-Uv
 Install-Python
+Install-Node
 Install-ClaudeCode
 Install-Fcc
 Write-Config -ApiKey $ApiKey
 Install-TaskScheduler -ApiKey $ApiKey
 Write-Aliases
+
+Add-ManifestItem @{ id = "config"; path = $FCC_ENV }
+Add-ManifestItem @{ id = "service"; type = "task-scheduler"; name = $SERVICE_NAME }
+Add-ManifestItem @{ id = "shell-aliases"; target = "powershell-profile" }
+Write-Manifest
+
 Test-Proxy
 
 Write-Host ""
